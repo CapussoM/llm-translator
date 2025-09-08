@@ -78,7 +78,6 @@ class DailyLLM(EventHandler):
         self.configure_ai_services()
         self.print_debug("configuring daily")
         self.configure_daily()
-
         self.stop_threads = False
 
         self.print_debug("starting orchestrator")
@@ -122,14 +121,12 @@ class DailyLLM(EventHandler):
     def configure_daily(self):
         Daily.init()
         self.client = CallClient(event_handler=self)
-
         self.mic = Daily.create_microphone_device(
             "mic", sample_rate=16000, channels=1)
         self.speaker = Daily.create_speaker_device(
             "speaker", sample_rate=16000, channels=1)
 
         Daily.select_speaker_device("speaker")
-
         self.client.set_user_name(self.bot_name)
         self.client.join(
             self.room_url,
@@ -157,9 +154,9 @@ class DailyLLM(EventHandler):
     def call_joined(self, join_data, client_error):
         self.print_debug(
             f"call_joined: {join_data}, {client_error}, deepgram language: {self.deepgram_languages[self.in_language]}")
-        # self.client.start_transcription(settings={"language": "es"})
-        # self.client.start_transcription(settings={"language": self.deepgram_languages[self.in_language] })
-        # self.client.start_transcription()
+        self.client.start_transcription(settings={"language": "es"})
+        self.client.start_transcription(settings={"language": self.deepgram_languages[self.in_language] })
+        self.client.start_transcription()
         self.send_languages()
         self.client.send_app_message({"msg": "request-languages"})
         # print(f"Transcription started, hopefully")
@@ -208,13 +205,16 @@ class DailyLLM(EventHandler):
 
     def on_transcription_message(self, message):
         # if message['session_id'] != self.my_participant_id:
-        if not re.match(r"tb\-.*", message['user_name']):
+        print("_______________________________")
+        print(message)
+        print("_______________________________")
+        if not re.match(r"tb\-.*", message.get('user_name', '')):
             print(f"💼 Got transcription: {message}")
             print(
-                f"speaker lang: {self.participant_langs[message['session_id']]}")
-            if self.participant_langs[message['session_id']
-                                      ] and self.participant_langs[message['session_id']]['spoken'] == self.in_language:
-                message['voice'] = self.participant_langs[message['session_id']]['voice']
+                f"speaker lang: {self.participant_langs.get(message.get('participantId'), 'N/A')}")
+            if self.participant_langs[message['participantId']
+                                      ] and self.participant_langs[message['participantId']]['spoken'] == self.in_language:
+                message['voice'] = self.participant_langs[message['participantId']]['voice']
                 print(f"handling user speech: {message}")
                 self.orchestrator.handle_user_speech(message)
                 # re-emit transcription with language info

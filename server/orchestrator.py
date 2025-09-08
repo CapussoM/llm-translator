@@ -45,31 +45,81 @@ class Orchestrator():
         print(f"👅 Handling user speech: {message}")
         Thread(target=self.request_llm_response, args=(message,)).start()
 
+    # def request_llm_response(self, message):
+    #     try:
+    #         msgs = [{"role": "system", "content": f"You will be provided with a sentence in {self.in_language.capitalize()}, and your task is to translate it into {self.out_language.capitalize()}."}, {
+    #             "role": "user", "content": message['text']}]
+    #         message['response'] = self.ai_llm_service.run_llm(msgs)
+    #         print(message)
+    #         self.handle_translation(message)
+    #     except Exception as e:
+    #         print(f"Exception in request_llm_response: {e}")
+
     def request_llm_response(self, message):
         try:
-            msgs = [{"role": "system", "content": f"You will be provided with a sentence in {self.in_language.capitalize()}, and your task is to translate it into {self.out_language.capitalize()}."}, {
-                "role": "user", "content": message['text']}]
-            message['response'] = self.ai_llm_service.run_llm(msgs)
+            msgs = [
+                {"role": "system", "content": f"You will be provided with a sentence in {self.in_language.capitalize()}, and your task is to translate it into {self.out_language.capitalize()}."},
+                {"role": "user", "content": message['text']}
+            ]
+
+            # stream=True gives you a generator of ChatCompletionChunk
+            response = self.ai_llm_service.run_llm(msgs)
+            message['response'] = response
+            print(message)
             self.handle_translation(message)
+
         except Exception as e:
             print(f"Exception in request_llm_response: {e}")
 
+    # def handle_translation(self, message):
+    #     # Do this all as one piece, at least for now
+    #     llm_response = message['response']
+    #     out = ''
+    #     for chunk in llm_response:
+    #         if len(chunk["choices"]) == 0:
+    #             continue
+    #         if "content" in chunk["choices"][0]["delta"]:
+    #             if chunk["choices"][0]["delta"]["content"] != {
+    #             }:  # streaming a content chunk
+    #                 next_chunk = chunk["choices"][0]["delta"]["content"]
+    #                 out += next_chunk
+    #     # sentence = self.ai_tts_service.run_tts(out)
+    #     message['translation'] = out
+    #     message['translation_language'] = self.out_language
+    #     self.enqueue(TranslatorScene, message=message)
+    # def handle_translation(self, message):
+    #     # Do this all as one piece, at least for now
+    #     llm_response = message['response']
+    #     out = ''
+    #     for chunk in llm_response:
+    #         if len(chunk["choices"]) == 0:
+    #             continue
+    #         if "content" in chunk["choices"][0]["delta"]:
+    #             if chunk["choices"][0]["delta"]["content"] != {
+    #             }:  # streaming a content chunk
+    #                 next_chunk = chunk["choices"][0]["delta"]["content"]
+    #                 out += next_chunk
+    #     # sentence = self.ai_tts_service.run_tts(out)
+    #     message['translation'] = out
+    #     message['translation_language'] = self.out_language
+    #     self.enqueue(TranslatorScene, message=message)
+
     def handle_translation(self, message):
-        # Do this all as one piece, at least for now
         llm_response = message['response']
         out = ''
+
         for chunk in llm_response:
-            if len(chunk["choices"]) == 0:
+            if not chunk.choices:
                 continue
-            if "content" in chunk["choices"][0]["delta"]:
-                if chunk["choices"][0]["delta"]["content"] != {
-                }:  # streaming a content chunk
-                    next_chunk = chunk["choices"][0]["delta"]["content"]
-                    out += next_chunk
-        # sentence = self.ai_tts_service.run_tts(out)
+
+            delta = chunk.choices[0].delta
+            if delta and delta.content:
+                out += delta.content
+
         message['translation'] = out
         message['translation_language'] = self.out_language
         self.enqueue(TranslatorScene, message=message)
+
 
     def request_tts(self, message):
         try:

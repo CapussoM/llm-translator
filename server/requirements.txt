@@ -1,3 +1,4 @@
+daily-python
 python-dotenv
 imageio-ffmpeg
 imageio
